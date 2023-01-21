@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use chrono::Local;
 use dotenv::dotenv;
 use fern::{
@@ -8,9 +8,10 @@ use fern::{
 use log::{error, info, LevelFilter};
 use poise::{
     command,
-    serenity_prelude::{GatewayIntents, User},
+    serenity_prelude::{ChannelType, GatewayIntents, GuildChannel, Mentionable, User},
     Framework, FrameworkOptions,
 };
+use songbird::SerenityInit;
 use std::{env, io};
 
 struct Data;
@@ -79,15 +80,48 @@ async fn on_error(err: FrameworkError<'_>) {
     }
 }
 
-#[command(prefix_command, owners_only)]
+#[command(prefix_command, owners_only, hide_in_help)]
 async fn register(ctx: Context<'_>) -> Result<()> {
     poise::builtins::register_application_commands_buttons(ctx).await?;
     Ok(())
 }
 
-#[command(slash_command)]
-async fn ping(ctx: Context<'_>) -> Result<()> {
-    ctx.say("Pong!").await?;
+/// Play a song or add it to the queue.
+#[command(slash_command, guild_only)]
+async fn play(
+    ctx: Context<'_>,
+    #[description = "The song to play (YouTube search or URL)."] song: String,
+    #[description = "The voice channel to join."] voice_channel: Option<GuildChannel>,
+) -> Result<()> {
+    let voice_channel = match voice_channel {
+        Some(channel) => match channel.kind {
+            ChannelType::Voice => channel.id,
+            _ => {
+                ctx.send(|m| {
+                    m.content(format!("{} is not a voice channel.", channel.mention()))
+                        .ephemeral(true)
+                })
+                .await?;
+                return Ok(());
+            }
+        },
+        None => {
+            let guild = ctx.guild().unwrap();
+            let Some(channel_id) = guild.voice_states.get(&ctx.author().id).and_then(|voice_state| voice_state.channel_id) else {
+                ctx.send(|m| m.content("I'm not in a voice channel. Join or specify one.").ephemeral(true)).await?;
+                return Ok(());
+            };
+            channel_id
+        }
+    };
+
+    let Some(manager) = songbird::get(ctx.serenity_context()).await else {
+        return Err(anyhow!("Failed to get Songbird manager."));
+    };
+
+    let (_, res) = manager.join(ctx.guild_id().unwrap(), voice_channel).await;
+    res?;
+
     Ok(())
 }
 
@@ -99,14 +133,15 @@ async fn main() -> Result<()> {
 
     let framework = Framework::builder()
         .options(FrameworkOptions {
-            commands: vec![ping(), register()],
+            commands: vec![play(), register()],
             pre_command: |ctx| Box::pin(async move { log_command(ctx) }),
             on_error: |err| Box::pin(async move { on_error(err).await }),
             ..Default::default()
         })
         .token(env::var("DISCORD_TOKEN")?)
         .intents(GatewayIntents::non_privileged())
-        .setup(|_ctx, _ready, _framework| Box::pin(async move { Ok(Data) }));
+        .setup(|_ctx, _ready, _framework| Box::pin(async move { Ok(Data) }))
+        .client_settings(|c| c.register_songbird());
 
     framework.run().await?;
 

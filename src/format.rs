@@ -21,7 +21,7 @@ pub(crate) fn song_embed<'e, 'a>(
     }
 
     if let Some(url) = &song.thumbnail {
-        e = e.thumbnail(url);
+        e = e.image(url);
     }
 
     if let Some(date) = song.date.as_ref().and_then(|d| {

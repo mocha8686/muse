@@ -19,6 +19,8 @@ type Error = anyhow::Error;
 type Context<'a> = poise::Context<'a, Data, Error>;
 type FrameworkError<'a> = poise::FrameworkError<'a, Data, Error>;
 
+const SONGBIRD_MANAGER_ERR: &str = "Failed to acquire Songbird manager.";
+
 fn setup_logger() -> Result<()> {
     let colors = ColoredLevelConfig::new()
         .error(Color::Red)
@@ -116,11 +118,31 @@ async fn play(
     };
 
     let Some(manager) = songbird::get(ctx.serenity_context()).await else {
-        return Err(anyhow!("Failed to get Songbird manager."));
+        return Err(anyhow!(SONGBIRD_MANAGER_ERR));
     };
 
     let (_, res) = manager.join(ctx.guild_id().unwrap(), voice_channel).await;
     res?;
+
+    Ok(())
+}
+
+/// Leave the voice channel.
+#[command(slash_command, guild_only)]
+async fn leave(ctx: Context<'_>) -> Result<()> {
+    let guild_id = ctx.guild_id().unwrap();
+    let Some(manager) = songbird::get(ctx.serenity_context()).await else {
+        return Err(anyhow!(SONGBIRD_MANAGER_ERR));
+    };
+
+    let handler = manager.get(guild_id);
+    if handler.is_some() {
+        manager.remove(guild_id).await?;
+        ctx.say("Left voice channel.").await?;
+    } else {
+        ctx.send(|m| m.content("I'm not in a voice channel.").ephemeral(true))
+            .await?;
+    }
 
     Ok(())
 }

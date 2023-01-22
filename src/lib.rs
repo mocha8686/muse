@@ -22,6 +22,8 @@ use format::format_user_for_log;
 use logger::{log_command, setup_logger};
 use types::{Context, Data, FrameworkError};
 
+use crate::format::song_embed;
+
 const SONGBIRD_MANAGER_ERR: &str = "Failed to acquire Songbird manager.";
 
 async fn on_error(err: FrameworkError<'_>) {
@@ -106,6 +108,8 @@ async fn play(
         handler_lock
     };
 
+    ctx.defer().await?;
+
     trace!(
         "{} ran a YouTube search for `{}`.",
         format_user_for_log(ctx.author()),
@@ -119,6 +123,16 @@ async fn play(
     } else {
         debug!("Enqueued a song in {guild_name}.");
     }
+
+    ctx.send(|m| {
+        m.content(if let Some(title) = &song.metadata.title {
+            format!("Queued *{title}*.")
+        } else {
+            "Queued a new song.".to_string()
+        })
+        .embed(|e| song_embed(e, &song.metadata))
+    })
+    .await?;
 
     let mut handler = handler_lock.lock().await;
     handler.enqueue_source(song);

@@ -7,7 +7,7 @@ use poise::{
 };
 use songbird::{Event, EventContext, EventHandler};
 
-use crate::format::{base_embed, song_embed};
+use crate::format::song_embed;
 
 pub(crate) struct NowPlaying {
     cache: Arc<Cache>,
@@ -49,9 +49,7 @@ impl EventHandler for NowPlaying {
 
         if let Err(e) = self
             .channel
-            .send_message(&self.http, |m| {
-                m.embed(|e| song_embed(base_embed(e), metadata))
-            })
+            .send_message(&self.http, |m| m.embed(|e| song_embed(e, metadata)))
             .await
         {
             error!(

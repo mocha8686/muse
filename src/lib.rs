@@ -172,6 +172,7 @@ async fn leave(ctx: Context<'_>) -> Result<()> {
 }
 
 pub async fn start() -> Result<()> {
+    debug!("Initializing framework...");
     setup_logger()?;
 
     let framework = Framework::builder()
@@ -183,9 +184,15 @@ pub async fn start() -> Result<()> {
         })
         .token(env::var("DISCORD_TOKEN")?)
         .intents(GatewayIntents::non_privileged())
-        .setup(|_ctx, _ready, _framework| Box::pin(async move { Ok(Data) }))
+        .setup(|_ctx, _ready, _framework| {
+            Box::pin(async move {
+                trace!("Setting up framework data...");
+                Ok(Data)
+            })
+        })
         .client_settings(|c| c.register_songbird());
 
+    debug!("Framework initialized. Starting.");
     framework.run().await?;
 
     Ok(())

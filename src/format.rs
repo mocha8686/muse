@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::NaiveDate;
 use poise::serenity_prelude::{CreateEmbed, User};
 use songbird::input::Metadata;
 
@@ -20,20 +20,14 @@ pub(crate) fn song_embed<'e, 'a>(
         e = e.url(url);
     }
 
-    if let Some(url) = &song.thumbnail {
-        e = e.image(url);
+    if let Some(artist) = &song.artist {
+        e = e.author(|a| a.name(artist));
+    } else if let Some(channel) = &song.channel {
+        e = e.author(|a| a.name(channel));
     }
 
-    if let Some(date) = song.date.as_ref().and_then(|d| {
-        let Some(year) = d.get(0..4).and_then(|s| s.parse().ok()) else { return None; };
-        let Some(month) = d.get(4..6).and_then(|s| s.parse().ok()) else { return None; };
-        let Some(day) = d.get(6..8).and_then(|s| s.parse().ok()) else { return None; };
-        let Some(date) = NaiveDate::from_ymd_opt(year, month, day) else { return None; };
-        let Some(datetime) = date.and_hms_opt(0, 0, 0) else { return None; };
-        let date = DateTime::<Utc>::from_utc(datetime, Utc);
-        Some(date)
-    }) {
-        e = e.timestamp(date);
+    if let Some(url) = &song.thumbnail {
+        e = e.image(url);
     }
 
     let mut footer = vec![];
@@ -42,17 +36,21 @@ pub(crate) fn song_embed<'e, 'a>(
         let secs = duration.as_secs();
         let mins = secs / 60;
         let secs = secs % 60;
-        footer.push(format!("[{mins}:{secs:02}]"));
+        footer.push(format!("[{mins}:{secs:02}]"))
     }
 
-    if let Some(artist) = &song.artist {
-        footer.push(artist.to_string());
-    } else if let Some(channel) = &song.channel {
-        footer.push(channel.to_string());
+    if let Some(date) = song.date.as_ref().and_then(|d| {
+        let Some(year) = d.get(0..4).and_then(|s| s.parse().ok()) else { return None; };
+        let Some(month) = d.get(4..6).and_then(|s| s.parse().ok()) else { return None; };
+        let Some(day) = d.get(6..8).and_then(|s| s.parse().ok()) else { return None; };
+        let Some(date) = NaiveDate::from_ymd_opt(year, month, day) else { return None; };
+        Some(date.format("Uploaded on %Y/%m/%d"))
+    }) {
+        footer.push(date.to_string());
     }
 
     if !footer.is_empty() {
-        e = e.footer(|f| f.text(footer.join(" ")));
+        e = e.footer(|f| f.text(footer.join(" • ")))
     }
 
     e

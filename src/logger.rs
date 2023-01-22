@@ -6,11 +6,13 @@ use fern::{
     colors::{Color, ColoredLevelConfig},
     Dispatch,
 };
-use log::{info, LevelFilter};
+use log::{info, trace, LevelFilter};
 
 use crate::{format::format_user_for_log, types::Context};
 
 pub(crate) fn setup_logger() -> Result<()> {
+    trace!("Setting up logger...");
+
     let colors = ColoredLevelConfig::new()
         .error(Color::Red)
         .warn(Color::Yellow)
@@ -35,6 +37,8 @@ pub(crate) fn setup_logger() -> Result<()> {
         .level_for("muse", LevelFilter::Debug)
         .chain(io::stderr())
         .apply()?;
+
+    trace!("Logger set up.");
 
     Ok(())
 }

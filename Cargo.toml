@@ -12,5 +12,5 @@ dotenv = "0.15"
 fern = { version = "0.6", features = ["colored"] }
 log = "0.4"
 poise = "0.5"
-songbird = "0.3"
+songbird = { version = "0.3", features = ["builtin-queue", "yt-dlp"] }
 tokio = { version = "1.24", features = ["full"] }

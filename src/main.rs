@@ -5,19 +5,75 @@ use fern::{
     colors::{Color, ColoredLevelConfig},
     Dispatch,
 };
-use log::{error, info, LevelFilter};
+use log::{debug, error, info, trace, LevelFilter};
 use poise::{
-    command,
-    serenity_prelude::{ChannelType, GatewayIntents, GuildChannel, Mentionable, User},
+    async_trait, command,
+    serenity_prelude::{
+        Cache, ChannelId, ChannelType, CreateEmbed, GatewayIntents, GuildChannel, Http,
+        Mentionable, User,
+    },
     Framework, FrameworkOptions,
 };
-use songbird::SerenityInit;
-use std::{env, io};
+use songbird::{
+    input::{Input, Metadata, Restartable},
+    Event, EventContext, EventHandler, SerenityInit, TrackEvent,
+};
+use std::{env, io, sync::Arc};
 
 struct Data;
 type Error = anyhow::Error;
 type Context<'a> = poise::Context<'a, Data, Error>;
 type FrameworkError<'a> = poise::FrameworkError<'a, Data, Error>;
+
+struct NowPlaying {
+    guild_name: String,
+    cache: Arc<Cache>,
+    http: Arc<Http>,
+    channel: ChannelId,
+}
+
+fn base_embed(e: &mut CreateEmbed) -> &mut CreateEmbed {
+    e.color(0x0789f0)
+}
+
+fn song_embed<'e, 's>(e: &'e mut CreateEmbed, song: &'s Metadata) -> &'e mut CreateEmbed {
+    todo!()
+}
+
+#[async_trait]
+impl EventHandler for NowPlaying {
+    async fn act(&self, ctx: &EventContext<'_>) -> Option<Event> {
+        let EventContext::Track(&[(_, handle)]) = ctx else {
+            return None;
+        };
+
+        let metadata = handle.metadata();
+
+        if let Some(ref title) = metadata.title {
+            trace!("Now playing `{}` in {}.", title, self.guild_name);
+        } else {
+            trace!("Now playing a new song in {}.", self.guild_name);
+        }
+
+        if let Err(e) = self
+            .channel
+            .send_message(&self.http, |m| {
+                m.embed(|e| song_embed(base_embed(e), metadata))
+            })
+            .await
+        {
+            error!(
+                "Error sending `Now Playing` notification in {}: {e}",
+                self.channel
+                    .name(&self.cache)
+                    .await
+                    .unwrap_or_else(|| self.channel.to_string())
+            )
+        };
+
+        None
+    }
+}
 
 const SONGBIRD_MANAGER_ERR: &str = "Failed to acquire Songbird manager.";
 
@@ -95,34 +151,71 @@ async fn play(
     #[description = "The song to play (YouTube search or URL)."] song: String,
     #[description = "The voice channel to join."] voice_channel: Option<GuildChannel>,
 ) -> Result<()> {
-    let voice_channel = match voice_channel {
-        Some(channel) => match channel.kind {
-            ChannelType::Voice => channel.id,
-            _ => {
-                ctx.send(|m| {
-                    m.content(format!("{} is not a voice channel.", channel.mention()))
-                        .ephemeral(true)
-                })
-                .await?;
-                return Ok(());
-            }
-        },
-        None => {
-            let guild = ctx.guild().unwrap();
-            let Some(channel_id) = guild.voice_states.get(&ctx.author().id).and_then(|voice_state| voice_state.channel_id) else {
-                ctx.send(|m| m.content("I'm not in a voice channel. Join or specify one.").ephemeral(true)).await?;
-                return Ok(());
-            };
-            channel_id
-        }
-    };
-
     let Some(manager) = songbird::get(ctx.serenity_context()).await else {
         return Err(anyhow!(SONGBIRD_MANAGER_ERR));
     };
+    let guild_id = ctx.guild_id().unwrap();
+    let guild_name = guild_id.name(ctx).unwrap_or_else(|| guild_id.to_string());
 
-    let (_, res) = manager.join(ctx.guild_id().unwrap(), voice_channel).await;
-    res?;
+    let handler_lock = if let Some(handler_lock) = manager.get(guild_id) {
+        handler_lock
+    } else {
+        let voice_channel = match voice_channel {
+            Some(channel) => match channel.kind {
+                ChannelType::Voice => channel.id,
+                _ => {
+                    ctx.send(|m| {
+                        m.content(format!("{} is not a voice channel.", channel.mention()))
+                            .ephemeral(true)
+                    })
+                    .await?;
+                    return Ok(());
+                }
+            },
+            None => {
+                let guild = ctx.guild().unwrap();
+                let Some(channel_id) = guild.voice_states.get(&ctx.author().id).and_then(|voice_state| voice_state.channel_id) else {
+                    ctx.send(|m| m.content("I'm not in a voice channel. Join or specify one.").ephemeral(true)).await?;
+                    return Ok(());
+                };
+                channel_id
+            }
+        };
+        let (handler_lock, res) = manager.join(guild_id, voice_channel).await;
+        res?;
+
+        {
+            let mut handler = handler_lock.lock().await;
+            handler.add_global_event(
+                Event::Track(TrackEvent::Play),
+                NowPlaying {
+                    channel: ctx.channel_id(),
+                    cache: ctx.serenity_context().cache.clone(),
+                    http: ctx.serenity_context().http.clone(),
+                    guild_name: guild_name.clone(),
+                },
+            );
+        }
+
+        handler_lock
+    };
+
+    trace!(
+        "{} ran a YouTube search for `{}`.",
+        format_user_for_log(ctx.author()),
+        song
+    );
+
+    let song: Input = Restartable::ytdl_search(song, true).await?.into();
+
+    if let Some(title) = &song.metadata.title {
+        debug!("Enqueued `{title}` in {guild_name}.");
+    } else {
+        debug!("Enqueued a song in {guild_name}.");
+    }
+
+    let mut handler = handler_lock.lock().await;
+    handler.enqueue_source(song);
 
     Ok(())
 }
@@ -139,6 +232,10 @@ async fn leave(ctx: Context<'_>) -> Result<()> {
     if handler.is_some() {
         manager.remove(guild_id).await?;
         ctx.say("Left voice channel.").await?;
+        debug!(
+            "Left {}.",
+            guild_id.name(ctx).unwrap_or_else(|| guild_id.to_string()),
+        );
     } else {
         ctx.send(|m| m.content("I'm not in a voice channel.").ephemeral(true))
             .await?;

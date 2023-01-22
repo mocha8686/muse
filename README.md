@@ -8,8 +8,8 @@
 A Discord bot for listening to music.
 
 ## TODO
+- [ ] `/skip [n]`
+- [ ] `/nowplaying`
+- [ ] `/queue`
+- [ ] `/remove <n>`
 
-- [ ] Check for existing connection in `play`
-- [ ] Sessions
-	- [ ] Guild tracking in Data
-	- [ ] Queues

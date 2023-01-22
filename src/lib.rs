@@ -64,6 +64,7 @@ async fn play(
     };
     let guild_id = ctx.guild_id().unwrap();
     let guild_name = guild_id.name(ctx).unwrap_or_else(|| guild_id.to_string());
+    let mut first_play = false;
 
     let handler_lock = if let Some(handler_lock) = manager.get(guild_id) {
         handler_lock
@@ -91,6 +92,8 @@ async fn play(
         };
         let (handler_lock, res) = manager.join(guild_id, voice_channel).await;
         res?;
+
+        first_play = true;
 
         {
             let mut handler = handler_lock.lock().await;
@@ -126,7 +129,11 @@ async fn play(
 
     ctx.send(|m| {
         m.content(if let Some(title) = &song.metadata.title {
-            format!("Queued *{title}*.")
+            if first_play {
+                format!("Now playing *{title}*.")
+            } else {
+                format!("Queued *{title}*.")
+            }
         } else {
             "Queued a new song.".to_string()
         })

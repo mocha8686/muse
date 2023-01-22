@@ -41,7 +41,7 @@ impl EventHandler for NowPlaying {
 
         let metadata = handle.metadata();
 
-        if let Some(ref title) = metadata.title {
+        if let Some(title) = &metadata.title {
             trace!("Now playing `{}` in {}.", title, self.guild_name);
         } else {
             trace!("Now playing a new song in {}.", self.guild_name);
@@ -49,7 +49,14 @@ impl EventHandler for NowPlaying {
 
         if let Err(e) = self
             .channel
-            .send_message(&self.http, |m| m.embed(|e| song_embed(e, metadata)))
+            .send_message(&self.http, |m| {
+                m.content(if let Some(title) = &metadata.title {
+                    format!("Now playing *{title}*.")
+                } else {
+                    "Now playing a new song.".to_string()
+                })
+                .embed(|e| song_embed(e, metadata))
+            })
             .await
         {
             error!(

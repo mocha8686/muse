@@ -2,10 +2,12 @@ use std::{collections::VecDeque, time::Duration};
 
 use chrono::NaiveDate;
 use poise::{
-    serenity_prelude::{ButtonStyle, CreateEmbed, EditMessage, User},
+    serenity_prelude::{ButtonStyle, CreateComponents, CreateEmbed, EditMessage, User},
     CreateReply,
 };
 use songbird::{input::Metadata, tracks::TrackHandle};
+
+use crate::types::PAGE_SIZE;
 
 pub(crate) fn format_duration(duration: &Duration) -> String {
     let secs = duration.as_secs();
@@ -75,14 +77,90 @@ pub(crate) fn now_playing_message<'m, 'att>(
     m.embed(|e| song_embed(e, song))
 }
 
+fn create_queue_embed<'e>(
+    mut e: &'e mut CreateEmbed,
+    np: &TrackHandle,
+    queue: &VecDeque<(usize, &TrackHandle)>,
+    page: usize,
+    total_pages: usize,
+) -> &'e mut CreateEmbed {
+    e = base_embed(e).title("Queue").field(
+        "Now Playing",
+        format!(
+            "[{}]({})",
+            np.metadata().title.as_ref().unwrap(),
+            np.metadata().source_url.as_ref().unwrap(),
+        ),
+        false,
+    );
+
+    if !queue.is_empty() {
+        e = e
+            .field(
+                format!("Page {}", page + 1),
+                queue
+                    .iter()
+                    .map(|(i, song)| {
+                        let metadata = song.metadata();
+                        format!(
+                            "*{i}.* [{title}]({url}) `{duration}`",
+                            title = metadata.title.as_ref().unwrap(),
+                            url = metadata.source_url.as_ref().unwrap(),
+                            duration = format_duration(metadata.duration.as_ref().unwrap())
+                        )
+                    })
+                    .skip(page * PAGE_SIZE)
+                    .take(PAGE_SIZE)
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+                false,
+            )
+            .footer(|f| f.text(format!("{}/{}", page + 1, total_pages)));
+    }
+
+    e
+}
+
+fn create_queue_components<'c>(
+    c: &'c mut CreateComponents,
+    page: usize,
+    total_pages: usize,
+    disabled: bool,
+) -> &'c mut CreateComponents {
+    c.create_action_row(|r| {
+        r.create_button(|b| {
+            b.custom_id("first")
+                .label("◀◀")
+                .style(ButtonStyle::Primary)
+                .disabled(disabled || page == 0)
+        })
+        .create_button(|b| {
+            b.custom_id("previous")
+                .label("◀")
+                .style(ButtonStyle::Primary)
+                .disabled(disabled || page == 0)
+        })
+        .create_button(|b| {
+            b.custom_id("next")
+                .label("▶")
+                .style(ButtonStyle::Primary)
+                .disabled(disabled || page >= total_pages - 1)
+        })
+        .create_button(|b| {
+            b.custom_id("last")
+                .label("▶▶")
+                .style(ButtonStyle::Primary)
+                .disabled(disabled || page >= total_pages - 1)
+        })
+    })
+}
+
 pub(crate) fn queue_message<'m, 'att>(
     m: &'m mut CreateReply<'att>,
     queue: &[TrackHandle],
     page: usize,
     disabled: bool,
 ) -> (&'m mut CreateReply<'att>, usize) {
-    const PAGE_SIZE: usize = 10;
-
     let mut queue: VecDeque<_> = queue.iter().enumerate().collect();
     let total_pages = (queue.len() as f64 / PAGE_SIZE as f64).ceil() as usize;
     let (_, np) = queue.pop_front().unwrap();
@@ -90,71 +168,8 @@ pub(crate) fn queue_message<'m, 'att>(
     let page = page.clamp(0, total_pages - 1);
 
     let m = m
-        .embed(|mut e| {
-            e = base_embed(e).title("Queue").field(
-                "Now Playing",
-                format!(
-                    "[{}]({})",
-                    np.metadata().title.as_ref().unwrap(),
-                    np.metadata().source_url.as_ref().unwrap(),
-                ),
-                false,
-            );
-
-            if !queue.is_empty() {
-                e = e
-                    .field(
-                        format!("Page {}", page + 1),
-                        queue
-                            .iter()
-                            .map(|(i, song)| {
-                                let metadata = song.metadata();
-                                format!(
-                                    "*{i}.* [{title}]({url}) `{duration}`",
-                                    title = metadata.title.as_ref().unwrap(),
-                                    url = metadata.source_url.as_ref().unwrap(),
-                                    duration = format_duration(metadata.duration.as_ref().unwrap())
-                                )
-                            })
-                            .skip(page * PAGE_SIZE)
-                            .take(PAGE_SIZE)
-                            .collect::<Vec<_>>()
-                            .join("\n"),
-                        false,
-                    )
-                    .footer(|f| f.text(format!("{}/{}", page + 1, total_pages)));
-            }
-
-            e
-        })
-        .components(|c| {
-            c.create_action_row(|r| {
-                r.create_button(|b| {
-                    b.custom_id("first")
-                        .label("◀◀")
-                        .style(ButtonStyle::Primary)
-                        .disabled(disabled || page == 0)
-                })
-                .create_button(|b| {
-                    b.custom_id("previous")
-                        .label("◀")
-                        .style(ButtonStyle::Primary)
-                        .disabled(disabled || page == 0)
-                })
-                .create_button(|b| {
-                    b.custom_id("next")
-                        .label("▶")
-                        .style(ButtonStyle::Primary)
-                        .disabled(disabled || page >= total_pages - 1)
-                })
-                .create_button(|b| {
-                    b.custom_id("last")
-                        .label("▶▶")
-                        .style(ButtonStyle::Primary)
-                        .disabled(disabled || page >= total_pages - 1)
-                })
-            })
-        });
+        .embed(|e| create_queue_embed(e, np, &queue, page, total_pages))
+        .components(|c| create_queue_components(c, page, total_pages, disabled));
 
     (m, page)
 }
@@ -164,8 +179,6 @@ pub(crate) fn queue_message_edit<'m, 'att>(
     queue: &[TrackHandle],
     page: usize,
 ) -> (&'m mut EditMessage<'att>, usize) {
-    const PAGE_SIZE: usize = 10;
-
     let mut queue: VecDeque<_> = queue.iter().enumerate().collect();
     let total_pages = (queue.len() as f32 / PAGE_SIZE as f32).ceil() as usize;
     let (_, np) = queue.pop_front().unwrap();
@@ -173,71 +186,8 @@ pub(crate) fn queue_message_edit<'m, 'att>(
     let page = page.clamp(0, total_pages - 1);
 
     let m = m
-        .embed(|mut e| {
-            e = base_embed(e).title("Queue").field(
-                "Now Playing",
-                format!(
-                    "[{}]({})",
-                    np.metadata().title.as_ref().unwrap(),
-                    np.metadata().source_url.as_ref().unwrap(),
-                ),
-                false,
-            );
-
-            if !queue.is_empty() {
-                e = e
-                    .field(
-                        format!("Page {}", page + 1),
-                        queue
-                            .iter()
-                            .map(|(i, song)| {
-                                let metadata = song.metadata();
-                                format!(
-                                    "*{i}.* [{title}]({url}) `{duration}`",
-                                    title = metadata.title.as_ref().unwrap(),
-                                    url = metadata.source_url.as_ref().unwrap(),
-                                    duration = format_duration(metadata.duration.as_ref().unwrap())
-                                )
-                            })
-                            .skip(page * PAGE_SIZE)
-                            .take(PAGE_SIZE)
-                            .collect::<Vec<_>>()
-                            .join("\n"),
-                        false,
-                    )
-                    .footer(|f| f.text(format!("{}/{}", page + 1, total_pages)));
-            }
-
-            e
-        })
-        .components(|c| {
-            c.create_action_row(|r| {
-                r.create_button(|b| {
-                    b.custom_id("first")
-                        .label("◀◀")
-                        .style(ButtonStyle::Primary)
-                        .disabled(page == 0)
-                })
-                .create_button(|b| {
-                    b.custom_id("previous")
-                        .label("◀")
-                        .style(ButtonStyle::Primary)
-                        .disabled(page == 0)
-                })
-                .create_button(|b| {
-                    b.custom_id("next")
-                        .label("▶")
-                        .style(ButtonStyle::Primary)
-                        .disabled(page >= total_pages - 1)
-                })
-                .create_button(|b| {
-                    b.custom_id("last")
-                        .label("▶▶")
-                        .style(ButtonStyle::Primary)
-                        .disabled(page >= total_pages - 1)
-                })
-            })
-        });
+        .embed(|e| create_queue_embed(e, np, &queue, page, total_pages))
+        .components(|c| create_queue_components(c, page, total_pages, false));
 
     (m, page)
 }

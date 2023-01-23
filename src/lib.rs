@@ -18,11 +18,9 @@ use songbird::{
 };
 
 use event::NowPlaying;
-use format::format_user_for_log;
+use format::{format_user_for_log, now_playing_message, song_embed};
 use logger::{log_command, setup_logger};
 use types::{Context, Data, FrameworkError};
-
-use crate::format::song_embed;
 
 const SONGBIRD_MANAGER_ERR: &str = "Failed to acquire Songbird manager.";
 
@@ -52,7 +50,7 @@ async fn register(ctx: Context<'_>) -> Result<()> {
     Ok(())
 }
 
-/// Play a song or add it to the queue.
+/// Add a song to the queue.
 #[command(slash_command, guild_only)]
 async fn play(
     ctx: Context<'_>,
@@ -135,7 +133,11 @@ async fn play(
                 format!("Queued *{title}*.")
             }
         } else {
-            "Queued a new song.".to_string()
+            if first_play {
+                "Now playing a new song.".to_string()
+            } else {
+                "Queued a new song.".to_string()
+            }
         })
         .embed(|e| song_embed(e, &song.metadata))
     })
@@ -144,6 +146,30 @@ async fn play(
     let mut handler = handler_lock.lock().await;
     handler.enqueue_source(song);
 
+    Ok(())
+}
+
+/// View the song currently playing.
+#[command(slash_command, guild_only, rename = "nowplaying")]
+async fn now_playing(ctx: Context<'_>) -> Result<()> {
+    let guild_id = ctx.guild_id().unwrap();
+    let Some(manager) = songbird::get(ctx.serenity_context()).await else {
+        return Err(anyhow!(SONGBIRD_MANAGER_ERR));
+    };
+
+    let Some(handler_lock) = manager.get(guild_id) else {
+        ctx.send(|m| m.content("I'm not in a voice channel.").ephemeral(true)).await?;
+        return Ok(());
+    };
+
+    let handler = handler_lock.lock().await;
+    let Some(song) = handler.queue().current() else {
+        ctx.send(|m| m.content("I'm not playing a song.").ephemeral(true)).await?;
+        return Ok(());
+    };
+
+    ctx.send(|m| now_playing_message(m, song.metadata()))
+        .await?;
     Ok(())
 }
 

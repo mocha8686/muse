@@ -1,5 +1,8 @@
 use chrono::NaiveDate;
-use poise::serenity_prelude::{CreateEmbed, User};
+use poise::{
+    serenity_prelude::{CreateEmbed, User},
+    CreateReply,
+};
 use songbird::input::Metadata;
 
 pub(crate) fn base_embed(e: &mut CreateEmbed) -> &mut CreateEmbed {
@@ -54,6 +57,19 @@ pub(crate) fn song_embed<'e, 'a>(
     }
 
     e
+}
+
+pub(crate) fn now_playing_message<'m, 'att, 'a>(
+    mut m: &'m mut CreateReply<'att>,
+    song: &'a Metadata,
+) -> &'m mut CreateReply<'att> {
+    if let Some(title) = &song.title {
+        m = m.content(format!("Now playing *{title}*."));
+    } else {
+        m = m.content(format!("Now playing a new song."));
+    }
+
+    m.embed(|e| song_embed(e, song))
 }
 
 pub(crate) fn format_user_for_log(user: &User) -> String {

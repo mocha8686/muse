@@ -80,7 +80,12 @@ pub(crate) async fn play(
         song
     );
 
-    let song: Input = Restartable::ytdl_search(song, true).await?.into();
+    let song: Input = if let Ok(song) = Restartable::ytdl(song.clone(), true).await {
+        song
+    } else {
+        Restartable::ytdl_search(song.clone(), true).await?
+    }
+    .into();
     let title = song.metadata.title.as_ref().unwrap();
 
     debug!("Enqueued `{title}` in {guild_name}.");

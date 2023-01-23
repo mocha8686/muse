@@ -1,8 +1,11 @@
 use std::time::Duration;
 
 use anyhow::anyhow;
-use log::warn;
-use poise::{command, serenity_prelude::CollectComponentInteraction};
+use log::{error, warn};
+use poise::{
+    command,
+    serenity_prelude::{CollectComponentInteraction, InteractionResponseType},
+};
 
 use crate::{
     format::{queue_message, queue_message_edit},
@@ -66,6 +69,15 @@ pub(crate) async fn queue(
             m
         })
         .await?;
+
+        if let Err(e) = interaction
+            .create_interaction_response(ctx, |r| {
+                r.kind(InteractionResponseType::DeferredUpdateMessage)
+            })
+            .await
+        {
+            error!("Error while creating interaction response for queue: {e}");
+        };
     }
 
     reply_handle

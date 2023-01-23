@@ -1,8 +1,8 @@
-mod leave;
-mod now_playing;
-mod play;
-mod queue;
-mod register;
+pub(crate) mod leave;
+pub(crate) mod now_playing;
+pub(crate) mod play;
+pub(crate) mod queue;
+pub(crate) mod register;
 
 pub(crate) use leave::leave;
 pub(crate) use now_playing::now_playing;

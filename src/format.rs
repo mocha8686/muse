@@ -56,7 +56,7 @@ pub(crate) fn song_embed<'e>(mut e: &'e mut CreateEmbed, song: &Metadata) -> &'e
     }
 
     if !footer.is_empty() {
-        e = e.footer(|f| f.text(footer.join(" • ")))
+        e = e.footer(|f| f.text(footer.join(" • ")));
     }
 
     e
@@ -84,7 +84,7 @@ pub(crate) fn queue_message<'m, 'att>(
     const PAGE_SIZE: usize = 10;
 
     let mut queue: VecDeque<_> = queue.iter().enumerate().collect();
-    let total_pages = (queue.len() as f32 / PAGE_SIZE as f32).ceil() as usize;
+    let total_pages = (queue.len() as f64 / PAGE_SIZE as f64).ceil() as usize;
     let (_, np) = queue.pop_front().unwrap();
 
     let page = page.clamp(0, total_pages - 1);

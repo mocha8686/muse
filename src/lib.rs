@@ -1,8 +1,8 @@
-mod commands;
-mod event;
-mod format;
-mod logger;
-mod types;
+pub(crate) mod commands;
+pub(crate) mod event;
+pub(crate) mod format;
+pub(crate) mod logger;
+pub(crate) mod types;
 
 use std::env;
 
@@ -55,7 +55,7 @@ pub async fn start() -> Result<()> {
                 Ok(Data)
             })
         })
-        .client_settings(|c| c.register_songbird());
+        .client_settings(SerenityInit::register_songbird);
 
     debug!("Framework initialized. Starting.");
     framework.run().await?;

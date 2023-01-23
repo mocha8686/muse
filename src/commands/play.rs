@@ -32,26 +32,24 @@ pub(crate) async fn play(
     let handler_lock = if let Some(handler_lock) = manager.get(guild_id) {
         handler_lock
     } else {
-        let voice_channel = match voice_channel {
-            Some(channel) => match channel.kind {
-                ChannelType::Voice => channel.id,
-                _ => {
-                    ctx.send(|m| {
-                        m.content(format!("{} is not a voice channel.", channel.mention()))
-                            .ephemeral(true)
-                    })
-                    .await?;
-                    return Ok(());
-                }
-            },
-            None => {
-                let guild = ctx.guild().unwrap();
-                let Some(channel_id) = guild.voice_states.get(&ctx.author().id).and_then(|voice_state| voice_state.channel_id) else {
+        let voice_channel = if let Some(channel) = voice_channel {
+            if channel.kind == ChannelType::Voice {
+                channel.id
+            } else {
+                ctx.send(|m| {
+                    m.content(format!("{} is not a voice channel.", channel.mention()))
+                        .ephemeral(true)
+                })
+                .await?;
+                return Ok(());
+            }
+        } else {
+            let guild = ctx.guild().unwrap();
+            let Some(channel_id) = guild.voice_states.get(&ctx.author().id).and_then(|voice_state| voice_state.channel_id) else {
                     ctx.send(|m| m.content("I'm not in a voice channel. Join or specify one.").ephemeral(true)).await?;
                     return Ok(());
                 };
-                channel_id
-            }
+            channel_id
         };
         let (handler_lock, res) = manager.join(guild_id, voice_channel).await;
         res?;
@@ -63,9 +61,9 @@ pub(crate) async fn play(
             handler.add_global_event(
                 Event::Track(TrackEvent::Play),
                 NowPlaying::new(
+                    ctx.serenity_context().cache.clone(),
                     ctx.channel_id(),
                     guild_name.clone(),
-                    ctx.serenity_context().cache.clone(),
                     ctx.serenity_context().http.clone(),
                 ),
             );

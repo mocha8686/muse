@@ -18,15 +18,15 @@ pub(crate) struct NowPlaying {
 
 impl NowPlaying {
     pub(crate) fn new(
+        cache: Arc<Cache>,
         channel: ChannelId,
         guild_name: String,
-        cache: Arc<Cache>,
         http: Arc<Http>,
     ) -> Self {
-        NowPlaying {
+        Self {
+            cache,
             channel,
             guild_name,
-            cache,
             http,
         }
     }
@@ -58,7 +58,7 @@ impl EventHandler for NowPlaying {
                     .name(&self.cache)
                     .await
                     .unwrap_or_else(|| self.channel.to_string())
-            )
+            );
         };
 
         None

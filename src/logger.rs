@@ -31,7 +31,7 @@ pub(crate) fn setup_logger() -> Result<()> {
                 b = format_args!("\x1B[{}m", Color::BrightBlack.to_fg_str()),
                 c = format_args!("\x1B[{}m", Color::Cyan.to_fg_str()),
                 e = "\x1B[0m",
-            ))
+            ));
         })
         .level(LevelFilter::Warn)
         .level_for("muse", LevelFilter::Debug)

@@ -1,0 +1,6 @@
+services:
+  app:
+    image: huecester/muse
+    restart: unless-stopped
+    environment:
+      - DISCORD_TOKEN

@@ -4,7 +4,7 @@ use muse::start;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    dotenv::dotenv()?;
+    dotenv::dotenv().ok();
     start().await?;
     Ok(())
 }

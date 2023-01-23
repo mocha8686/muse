@@ -9,7 +9,7 @@ A Discord bot for listening to music.
 
 ## TODO
 - [ ] `/skip [n]`
-- [ ] `/nowplaying`
+- [x] `/nowplaying`
 - [ ] `/queue`
 - [ ] `/remove <n>`
 

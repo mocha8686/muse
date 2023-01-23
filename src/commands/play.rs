@@ -83,24 +83,15 @@ pub(crate) async fn play(
     );
 
     let song: Input = Restartable::ytdl_search(song, true).await?.into();
+    let title = song.metadata.title.as_ref().unwrap();
 
-    if let Some(title) = &song.metadata.title {
-        debug!("Enqueued `{title}` in {guild_name}.");
-    } else {
-        debug!("Enqueued a song in {guild_name}.");
-    }
+    debug!("Enqueued `{title}` in {guild_name}.");
 
     ctx.send(|m| {
-        m.content(if let Some(title) = &song.metadata.title {
-            if first_play {
-                format!("Now playing *{title}*.")
-            } else {
-                format!("Queued *{title}*.")
-            }
-        } else if first_play {
-            "Now playing a new song.".to_string()
+        m.content(if first_play {
+            format!("Now playing *{title}*.")
         } else {
-            "Queued a new song.".to_string()
+            format!("Queued *{title}*.")
         })
         .embed(|e| song_embed(e, &song.metadata))
     })

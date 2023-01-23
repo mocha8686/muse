@@ -42,7 +42,7 @@ pub async fn start() -> Result<()> {
 
     let framework = Framework::builder()
         .options(FrameworkOptions {
-            commands: vec![play(), register(), now_playing(), leave()],
+            commands: vec![play(), register(), now_playing(), leave(), queue()],
             pre_command: |ctx| Box::pin(async move { log_command(ctx) }),
             on_error: |err| Box::pin(async move { on_error(err).await }),
             ..Default::default()

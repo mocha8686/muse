@@ -10,6 +10,6 @@ A Discord bot for listening to music.
 ## TODO
 - [ ] `/skip [n]`
 - [x] `/nowplaying`
-- [ ] `/queue`
+- [x] `/queue`
 - [ ] `/remove <n>`
 

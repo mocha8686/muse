@@ -9,10 +9,7 @@ pub(crate) fn base_embed(e: &mut CreateEmbed) -> &mut CreateEmbed {
     e.color(0x0789f0)
 }
 
-pub(crate) fn song_embed<'e, 'a>(
-    mut e: &'e mut CreateEmbed,
-    song: &'a Metadata,
-) -> &'e mut CreateEmbed {
+pub(crate) fn song_embed<'e>(mut e: &'e mut CreateEmbed, song: &Metadata) -> &'e mut CreateEmbed {
     e = base_embed(e);
 
     if let Some(title) = &song.title {
@@ -59,14 +56,14 @@ pub(crate) fn song_embed<'e, 'a>(
     e
 }
 
-pub(crate) fn now_playing_message<'m, 'att, 'a>(
+pub(crate) fn now_playing_message<'m, 'att>(
     mut m: &'m mut CreateReply<'att>,
-    song: &'a Metadata,
+    song: &Metadata,
 ) -> &'m mut CreateReply<'att> {
     if let Some(title) = &song.title {
         m = m.content(format!("Now playing *{title}*."));
     } else {
-        m = m.content(format!("Now playing a new song."));
+        m = m.content("Now playing a new song.");
     }
 
     m.embed(|e| song_embed(e, song))

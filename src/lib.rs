@@ -132,12 +132,10 @@ async fn play(
             } else {
                 format!("Queued *{title}*.")
             }
+        } else if first_play {
+            "Now playing a new song.".to_string()
         } else {
-            if first_play {
-                "Now playing a new song.".to_string()
-            } else {
-                "Queued a new song.".to_string()
-            }
+            "Queued a new song.".to_string()
         })
         .embed(|e| song_embed(e, &song.metadata))
     })

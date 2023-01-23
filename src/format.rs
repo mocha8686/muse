@@ -96,7 +96,7 @@ pub(crate) fn queue_message<'m, 'att>(
                 format!(
                     "[{}]({})",
                     np.metadata().title.as_ref().unwrap(),
-                    np.metadata().channel.as_ref().unwrap(),
+                    np.metadata().source_url.as_ref().unwrap(),
                 ),
                 false,
             );
@@ -179,7 +179,7 @@ pub(crate) fn queue_message_edit<'m, 'att>(
                 format!(
                     "[{}]({})",
                     np.metadata().title.as_ref().unwrap(),
-                    np.metadata().channel.as_ref().unwrap(),
+                    np.metadata().source_url.as_ref().unwrap(),
                 ),
                 false,
             );

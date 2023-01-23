@@ -7,7 +7,7 @@ pub(crate) mod types;
 use std::env;
 
 use anyhow::Result;
-use log::{debug, error, trace};
+use log::{error, info, trace};
 use poise::{serenity_prelude::GatewayIntents, Framework, FrameworkOptions};
 use songbird::SerenityInit;
 
@@ -37,7 +37,7 @@ async fn on_error(err: FrameworkError<'_>) {
 }
 
 pub async fn start() -> Result<()> {
-    debug!("Initializing framework...");
+    info!("Initializing framework...");
     setup_logger()?;
 
     let framework = Framework::builder()
@@ -57,7 +57,7 @@ pub async fn start() -> Result<()> {
         })
         .client_settings(SerenityInit::register_songbird);
 
-    debug!("Framework initialized. Starting.");
+    info!("Framework initialized. Starting.");
     framework.run().await?;
 
     Ok(())

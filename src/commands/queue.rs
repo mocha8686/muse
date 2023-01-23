@@ -12,8 +12,9 @@ use crate::{
 #[command(slash_command, guild_only)]
 pub(crate) async fn queue(
     ctx: Context<'_>,
-    #[description = "Queue page"] mut page: usize,
+    #[description = "Queue page"] page: Option<usize>,
 ) -> Result<()> {
+    let mut page = page.unwrap_or(0);
     let guild_id = ctx.guild_id().unwrap();
     let Some(manager) = songbird::get(ctx.serenity_context()).await else {
         return Err(anyhow!(SONGBIRD_MANAGER_ERR));

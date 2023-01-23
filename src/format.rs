@@ -121,12 +121,12 @@ fn create_queue_embed<'e>(
     e
 }
 
-fn create_queue_components<'c>(
-    c: &'c mut CreateComponents,
+fn create_queue_components(
+    c: &mut CreateComponents,
     page: usize,
     total_pages: usize,
     disabled: bool,
-) -> &'c mut CreateComponents {
+) -> &mut CreateComponents {
     c.create_action_row(|r| {
         r.create_button(|b| {
             b.custom_id("first")

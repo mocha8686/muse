@@ -87,9 +87,10 @@ fn create_queue_embed<'e>(
     e = base_embed(e).title("Queue").field(
         "Now Playing",
         format!(
-            "[{}]({})",
+            "[{}]({}) `{}`",
             np.metadata().title.as_ref().unwrap(),
             np.metadata().source_url.as_ref().unwrap(),
+            format_duration(np.metadata().duration.as_ref().unwrap()),
         ),
         false,
     );

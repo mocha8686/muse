@@ -3,7 +3,7 @@ use poise::command;
 
 use crate::{format::now_playing_message, types::*};
 
-/// View the song currently playing.
+/// View the currently playing song.
 #[command(slash_command, guild_only, rename = "nowplaying")]
 pub(crate) async fn now_playing(ctx: Context<'_>) -> Result<()> {
     let guild_id = ctx.guild_id().unwrap();

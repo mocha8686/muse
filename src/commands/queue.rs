@@ -12,6 +12,7 @@ use crate::{
     types::*,
 };
 
+/// View the current queue.
 #[command(slash_command, guild_only)]
 pub(crate) async fn queue(
     ctx: Context<'_>,

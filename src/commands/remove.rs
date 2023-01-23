@@ -4,6 +4,7 @@ use poise::command;
 
 use crate::{format::song_embed, types::*};
 
+/// Remove a song from the queue.
 #[command(slash_command, guild_only)]
 pub(crate) async fn remove(
     ctx: Context<'_>,

@@ -4,6 +4,7 @@ use poise::command;
 
 use crate::{format::song_embed, types::*};
 
+/// Skip through songs in the queue.
 #[command(slash_command, guild_only)]
 pub(crate) async fn skip(
     ctx: Context<'_>,

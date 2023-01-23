@@ -25,8 +25,10 @@ pub(crate) async fn queue(
         return Ok(());
     };
 
-    let handler = handler_lock.lock().await;
-    let queue = handler.queue().current_queue();
+    let queue = {
+        let handler = handler_lock.lock().await;
+        handler.queue().current_queue()
+    };
 
     let reply_handle = if queue.is_empty() {
         ctx.send(|m| m.content("The queue is empty.").ephemeral(true))

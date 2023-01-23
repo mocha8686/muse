@@ -16,13 +16,16 @@ pub(crate) async fn now_playing(ctx: Context<'_>) -> Result<()> {
         return Ok(());
     };
 
-    let handler = handler_lock.lock().await;
-    let Some(song) = handler.queue().current() else {
+    let np = {
+        let handler = handler_lock.lock().await;
+        handler.queue().current()
+    };
+
+    let Some(np) = np else {
         ctx.send(|m| m.content("I'm not playing a song.").ephemeral(true)).await?;
         return Ok(());
     };
 
-    ctx.send(|m| now_playing_message(m, song.metadata()))
-        .await?;
+    ctx.send(|m| now_playing_message(m, np.metadata())).await?;
     Ok(())
 }

@@ -100,8 +100,10 @@ pub(crate) async fn play(
     })
     .await?;
 
-    let mut handler = handler_lock.lock().await;
-    handler.enqueue_source(song);
+    {
+        let mut handler = handler_lock.lock().await;
+        handler.enqueue_source(song);
+    }
 
     Ok(())
 }

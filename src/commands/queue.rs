@@ -48,6 +48,7 @@ pub(crate) async fn queue(
 
     while let Some(interaction) = CollectComponentInteraction::new(ctx)
         .author_id(ctx.author().id)
+        .message_id(reply_handle.message().await?.id)
         .timeout(Duration::from_secs(60))
         .await
     {

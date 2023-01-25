@@ -37,8 +37,8 @@ async fn on_error(err: FrameworkError<'_>) {
 }
 
 pub async fn start() -> Result<()> {
-    info!("Initializing framework...");
     setup_logger()?;
+    info!("Initializing framework...");
 
     let framework = Framework::builder()
         .options(FrameworkOptions {

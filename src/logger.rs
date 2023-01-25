@@ -1,4 +1,4 @@
-use std::io;
+use std::{env, io};
 
 use anyhow::Result;
 use chrono::Local;
@@ -33,8 +33,20 @@ pub(crate) fn setup_logger() -> Result<()> {
                 e = "\x1B[0m",
             ));
         })
-        .level(LevelFilter::Warn)
-        .level_for("muse", LevelFilter::Debug)
+        .level(if env::var("MUSE_LOG_VERBOSE").is_ok() {
+            LevelFilter::Info
+        } else {
+            LevelFilter::Warn
+        })
+        .level_for(
+            "muse",
+            if env::var("MUSE_LOG_VERBOSE").is_ok() {
+                LevelFilter::Trace
+            } else {
+                LevelFilter::Debug
+            },
+        )
+        .level_for("tracing", LevelFilter::Warn)
         .chain(io::stderr())
         .apply()?;
 

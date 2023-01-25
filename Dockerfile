@@ -1,21 +1,27 @@
 FROM rust:latest AS build
-
 WORKDIR /muse
 
-RUN ["apt-get", "update"]
-RUN ["apt-get", "-y", "upgrade"]
-RUN ["apt-get", "install", "-y", "cmake"]
+RUN apt-get update -y && \
+	apt-get install -y cmake
 
-RUN ["cargo", "init", "--bin"]
-COPY ./Cargo.lock ./Cargo.lock
-COPY ./Cargo.toml ./Cargo.toml
-RUN ["cargo", "build", "--release"]
+RUN cargo init
+COPY ./Cargo.lock ./Cargo.toml ./
+RUN cargo build --release && rm -rf src target/release/muse
 
-RUN ["rm", "-rf", "src"]
 COPY ./src ./src
-RUN ["cargo", "build", "--release"]
+RUN cargo build --release
 
 
 FROM debian:11-slim
+WORKDIR /muse
+
+RUN \
+	apt-get update -y && \
+	apt-get install -y curl ffmpeg python3 && \
+	curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
+	chmod a+rx /usr/local/bin/yt-dlp
+
+RUN groupadd -r muse && useradd --no-log-init -r -g muse muse
+USER muse
 COPY --from=build /muse/target/release/muse .
 CMD ["./muse"]
